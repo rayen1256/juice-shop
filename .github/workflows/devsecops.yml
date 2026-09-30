@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 jobs:
-  # ------- Étape 1 : build de base -------
+  # ------- Étape 1 : build de base (backend uniquement) -------
   build:
     runs-on: ubuntu-latest
     steps:
@@ -15,7 +15,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install
+      - name: Install backend dependencies only
+        run: npm install --ignore-scripts
+      - name: Build backend
+        run: npm run build:server
 
   # ------- SAST : analyse du code source -------
   sast:
