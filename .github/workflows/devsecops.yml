@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install backend dependencies only
-        run: npm install --ignore-scripts
+        run: npm install --ignore-scripts --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
       - name: Build backend
         run: npm run build:server
 
