@@ -23,22 +23,23 @@ jobs:
   # ------- SAST : analyse du code source -------
   sast:
     runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
       - name: Semgrep SAST scan
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: p/owasp-top-ten
+        run: semgrep scan --config=p/owasp-top-ten --error
 
   # ------- Scan de secrets -------
   secrets_scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz gitleaks
+      - name: Gitleaks scan (filesystem complet)
+        run: ./gitleaks detect --no-git --source . --exit-code 1
 
   # ------- SCA : dépendances vulnérables -------
   scan_dependencies:
