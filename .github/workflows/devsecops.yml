@@ -51,7 +51,7 @@ jobs:
           scan-type: 'fs'
           scan-ref: '.'
           severity: 'CRITICAL,HIGH'
-          exit-code: '0'   # on met 0 pour l'instant pour ne pas bloquer pendant les tests
+          exit-code: '1'   # on met 0 pour l'instant pour ne pas bloquer pendant les tests
 
   # ------- Scan de l'image Docker -------
   docker_scan:
@@ -66,4 +66,4 @@ jobs:
         with:
           image-ref: 'juice-shop:ci'
           severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          exit-code: '1'
