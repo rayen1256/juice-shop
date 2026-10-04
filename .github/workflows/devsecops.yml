@@ -132,3 +132,25 @@ jobs:
       - name: Stop container
         if: always()
         run: docker stop juice-shop        
+
+
+
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [sast, secrets_scan, scan_dependencies, docker_scan, dast]
+    if: always()
+    steps:
+      - name: Notify Slack on failure
+        if: contains(needs.*.result, 'failure')
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"🚨 *DevSecOps Pipeline bloqué* sur \`${{ github.repository }}\` (commit \`${{ github.sha }}\`). Vulnérabilités critiques détectées — voir : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+          ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on success
+        if: "!contains(needs.*.result, 'failure')"
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"✅ Pipeline DevSecOps réussi sur \`${{ github.repository }}\` — aucune vulnérabilité bloquante.\"}" \
+          ${{ secrets.SLACK_WEBHOOK_URL }}     
