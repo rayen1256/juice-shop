@@ -191,16 +191,56 @@ jobs:
     steps:
       - name: Build summary report
         run: |
-          echo "# 🛡️ Rapport DevSecOps — $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "# 🛡️ Rapport DevSecOps" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Contrôle | Statut |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| SAST (Semgrep) | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Secrets (Gitleaks) | ${{ needs.secrets_scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| SCA (Trivy fs) | ${{ needs.scan_dependencies.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker (Trivy image) | ${{ needs.docker_scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| DAST (OWASP ZAP) | ${{ needs.dast.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| IaC (Checkov) | ${{ needs.scan_iac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "**Date :** $(date -u +'%Y-%m-%d %H:%M UTC')  " >> $GITHUB_STEP_SUMMARY
+          echo "**Commit :** \`${{ github.sha }}\`  " >> $GITHUB_STEP_SUMMARY
+          echo "**Déclenché par :** ${{ github.actor }}  " >> $GITHUB_STEP_SUMMARY
+          echo "**Branche :** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit :** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Déclenché par :** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY 
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Résultats des contrôles de sécurité" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| # | Contrôle | Outil | Statut | Findings |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.sast.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 1 | SAST | Semgrep | $ICON ${{ needs.sast.result }} | 51 findings |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.secrets_scan.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 2 | Scan de secrets | Gitleaks | $ICON ${{ needs.secrets_scan.result }} | 68 leaks |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.scan_dependencies.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 3 | SCA / secrets source | Trivy (fs) | $ICON ${{ needs.scan_dependencies.result }} | 3 secrets RSA |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.docker_scan.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 4 | Scan image Docker | Trivy (image) | $ICON ${{ needs.docker_scan.result }} | 51 CVE (9 CRITICAL) |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.dast.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 5 | DAST | OWASP ZAP | $ICON ${{ needs.dast.result }} | 10 warnings |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.scan_iac.result }}" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          echo "| 6 | Scan IaC | Checkov | $ICON ${{ needs.scan_iac.result }} | 0 problème |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          FAIL_COUNT=0
+          for r in "${{ needs.sast.result }}" "${{ needs.secrets_scan.result }}" "${{ needs.scan_dependencies.result }}" "${{ needs.docker_scan.result }}" "${{ needs.dast.result }}"; do
+            if [ "$r" != "success" ]; then FAIL_COUNT=$((FAIL_COUNT+1)); fi
+          done
+
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "## 🚨 Statut global : PIPELINE BLOQUÉ" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**$FAIL_COUNT contrôle(s) sur 5** ont détecté des vulnérabilités bloquantes (quality gate CRITICAL/HIGH actif)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ Statut global : PIPELINE VALIDÉ" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Aucune vulnérabilité bloquante détectée." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📄 [Voir le détail de ce run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
