@@ -183,3 +183,24 @@ jobs:
             -d "{\"content\":\"⚠️ **DevSecOps Pipeline CANCELLED**\n\n📦 Repository: \`${{ github.repository }}\`\n🌿 Branch: \`${{ github.ref_name }}\`\n\n🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>\"}" \
             "$DISCORD_WEBHOOK_URL"
 
+  
+  summary:
+    runs-on: ubuntu-latest
+    needs: [sast, secrets_scan, scan_dependencies, docker_scan, dast, scan_iac]
+    if: always()
+    steps:
+      - name: Build summary report
+        run: |
+          echo "# 🛡️ Rapport DevSecOps — $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Contrôle | Statut |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST (Semgrep) | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets (Gitleaks) | ${{ needs.secrets_scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SCA (Trivy fs) | ${{ needs.scan_dependencies.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker (Trivy image) | ${{ needs.docker_scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| DAST (OWASP ZAP) | ${{ needs.dast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IaC (Checkov) | ${{ needs.scan_iac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit :** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Déclenché par :** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY 
