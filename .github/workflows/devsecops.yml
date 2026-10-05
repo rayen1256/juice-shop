@@ -23,13 +23,17 @@ jobs:
   # ------- SAST : analyse du code source -------
   sast:
     runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
+    container: { image: semgrep/semgrep }
     steps:
       - uses: actions/checkout@v4
-      - name: Semgrep SAST scan
-        run: semgrep scan --config=p/owasp-top-ten --error
-
+      - run: semgrep scan --config=p/owasp-top-ten --json --output=semgrep-report.json
+        continue-on-error: true
+      - name: Upload Semgrep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+      - run: semgrep scan --config=p/owasp-top-ten --error
   # ------- Scan de secrets -------
   secrets_scan:
     runs-on: ubuntu-latest
@@ -46,13 +50,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: '.'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'   # on met 0 pour l'instant pour ne pas bloquer pendant les tests
+          format: 'json'
+          output: 'trivy-fs-report.json'
+      - name: Upload Trivy fs report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: trivy-fs-report.json
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
 
   # ------- Scan de l'image Docker -------
   docker_scan:
@@ -60,10 +73,19 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -t juice-shop:ci .
-      - name: Trivy image scan
-        uses: aquasecurity/trivy-action@master
+      - run: docker build -t juice-shop:ci .
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'juice-shop:ci'
+          severity: 'CRITICAL,HIGH'
+          format: 'json'
+          output: 'trivy-docker-report.json'
+      - name: Upload Trivy docker report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-docker-report
+          path: trivy-docker-report.json
+      - uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'juice-shop:ci'
           severity: 'CRITICAL,HIGH'
@@ -104,36 +126,29 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t juice-shop:dast .
-
-      - name: Start Juice Shop container
-        run: docker run -d --name juice-shop -p 3000:3000 juice-shop:dast
-
-      - name: Wait for app to be ready
+      - run: docker build -t juice-shop:dast .
+      - run: docker run -d --name juice-shop -p 3000:3000 juice-shop:dast
+      - name: Wait for app
         run: |
           for i in {1..30}; do
-            if curl -s http://localhost:3000 > /dev/null; then
-              echo "App is up!"
-              break
-            fi
-            echo "Waiting for app..."
+            curl -s http://localhost:3000 > /dev/null && break
             sleep 5
           done
-
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://localhost:3000'
           cmd_options: '-a'
           fail_action: true
-
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-report
+          path: report_html.html
       - name: Stop container
         if: always()
-        run: docker stop juice-shop        
-
-
+        run: docker stop juice-shop
 
 
  
